@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 import schema
+from typing import List
 import models
 from database import engine, SessionLocal
 from sqlalchemy.orm import Session
@@ -45,12 +46,12 @@ def update(id: int, request: schema.Blog, db: Session = Depends(get_db)):
      return blog
 
 
-@app.get("/blogs")
+@app.get("/blogs", response_model = List[schema.ShowBlog])
 def read_blogs(db: Session = Depends(get_db)):
     blogs = db.query(models.Blog).all()
     return blogs
 
-@app.get("/blog/{id}", status_code = status.HTTP_200_OK)
+@app.get("/blog/{id}", status_code = status.HTTP_200_OK, response_model=schema.ShowBlog)
 def read_blog(id: int, db: Session = Depends(get_db)):
     blog = db.query(models.Blog).filter(models.Blog.id == id).first()
     if not blog:
