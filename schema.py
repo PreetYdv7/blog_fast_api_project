@@ -10,3 +10,15 @@ class ShowBlog(BaseModel):
     model_config = {
         "from_attributes": True
     }
+
+class User(BaseModel):
+    username: str
+    email: str
+    password: str
+
+class ShowUser(BaseModel):
+    username: str
+    email: str
+    model_config = {
+        "from_attributes": True
+    }
