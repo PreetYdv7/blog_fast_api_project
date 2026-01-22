@@ -26,11 +26,10 @@ def create_blog(request: schema.Blog, db: Session = Depends(get_db)):
 
 @app.delete("/blog/{id}", status_code = status.HTTP_204_NO_CONTENT)
 def destroy_blog(id: int, db: Session = Depends(get_db)):
-    blog = db.query(models.Blog).filter(models.Blog.id == id)
-    if not blog.first():
+    blog = db.query(models.Blog).filter(models.Blog.id == id).first()
+    if not blog:
         raise HTTPException(status_code=404, detail=f"Blog with id {id} not found")
-    else:
-        blog.delete()
+    db.delete(blog)
     db.commit()
 
 
@@ -59,3 +58,10 @@ def read_blog(id: int, db: Session = Depends(get_db)):
     else:
         return blog
 
+@app.post("/user")
+def create_user(request: schema.User, db: Session = Depends(get_db)):
+    new_user = models.User(username = request.username, email = request.email, password = request.password)
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
