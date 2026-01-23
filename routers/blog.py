@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-import schema
+from schemas import schema
 import database
-import models
+from models import Blog, User
 from typing import List
 from sqlalchemy.orm import Session, joinedload
 
@@ -15,11 +15,11 @@ router = APIRouter(
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_blog(request: schema.Blog, db: Session = Depends(database.get_db)):
     # Verify user exists
-    user = db.query(models.User).filter(models.User.id == request.user_id).first()
+    user = db.query(User).filter(User.id == request.user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail=f"User with id {request.user_id} not found")
     
-    new_blog = models.Blog(title=request.title, body=request.body, user_id=request.user_id)
+    new_blog = Blog(title=request.title, body=request.body, user_id=request.user_id)
     db.add(new_blog)
     db.commit()
     db.refresh(new_blog)
@@ -28,7 +28,7 @@ def create_blog(request: schema.Blog, db: Session = Depends(database.get_db)):
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def destroy_blog(id: int, db: Session = Depends(database.get_db)):
-    blog = db.query(models.Blog).filter(models.Blog.id == id).first()
+    blog = db.query(Blog).filter(Blog.id == id).first()
     if not blog:
         raise HTTPException(status_code=404, detail=f"Blog with id {id} not found")
     
@@ -38,13 +38,13 @@ def destroy_blog(id: int, db: Session = Depends(database.get_db)):
 
 @router.put("/{id}", status_code=status.HTTP_202_ACCEPTED)
 def update(id: int, request: schema.Blog, db: Session = Depends(database.get_db)):
-    blog = db.query(models.Blog).filter(models.Blog.id == id).first()
+    blog = db.query(Blog).filter(Blog.id == id).first()
     if not blog:
         raise HTTPException(status_code=404, detail=f"Blog with id {id} not found")
     
     # Verify user exists if user_id is being changed
     if request.user_id != blog.user_id:
-        user = db.query(models.User).filter(models.User.id == request.user_id).first()
+        user = db.query(User).filter(User.id == request.user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail=f"User with id {request.user_id} not found")
     
@@ -59,7 +59,7 @@ def update(id: int, request: schema.Blog, db: Session = Depends(database.get_db)
 @router.get("/{id}", status_code=status.HTTP_200_OK, response_model=schema.ShowBlog)
 def read_blog(id: int, db: Session = Depends(database.get_db)):
     # Load owner relationship to avoid lazy loading issues
-    blog = db.query(models.Blog).options(joinedload(models.Blog.owner)).filter(models.Blog.id == id).first()
+    blog = db.query(Blog).options(joinedload(Blog.owner)).filter(Blog.id == id).first()
     if not blog:
         raise HTTPException(status_code=404, detail=f"Blog with id {id} not found")
     return blog
@@ -68,5 +68,5 @@ def read_blog(id: int, db: Session = Depends(database.get_db)):
 @router.get("/blogs", response_model=List[schema.ShowBlog])
 def read_blogs(db: Session = Depends(database.get_db)):
     # Load owner relationship to avoid lazy loading issues
-    blogs = db.query(models.Blog).options(joinedload(models.Blog.owner)).all()
+    blogs = db.query(Blog).options(joinedload(Blog.owner)).all()
     return blogs
