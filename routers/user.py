@@ -3,7 +3,7 @@ from schemas import schema
 import database
 from models import User
 from sqlalchemy.orm import Session, joinedload
-from passlib.context import CryptContext
+from hashing import Hash
 
 
 router = APIRouter(
@@ -12,14 +12,10 @@ router = APIRouter(
 )
 
 
-# Password hashing context
-pwd_cxt = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
 @router.post("", response_model=schema.ShowUser)
 def create_user(request: schema.User, db: Session = Depends(database.get_db)):
     # Hash password before storing
-    hashed_password = pwd_cxt.hash(request.password)
+    hashed_password = Hash.bcrypt(request.password)
     new_user = User(username=request.username, email=request.email, password=hashed_password)
     db.add(new_user)
     db.commit()
