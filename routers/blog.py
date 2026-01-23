@@ -4,69 +4,93 @@ import database
 from models import Blog, User
 from typing import List
 from sqlalchemy.orm import Session, joinedload
-
+from routers import oauth2
 
 router = APIRouter(
     prefix="/blog",
     tags=["Blog"]
 )
 
-
+# ---------------- CREATE BLOG (JWT PROTECTED) ----------------
 @router.post("", status_code=status.HTTP_201_CREATED)
-def create_blog(request: schema.Blog, db: Session = Depends(database.get_db)):
-    # Verify user exists
-    user = db.query(User).filter(User.id == request.user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail=f"User with id {request.user_id} not found")
-    
-    new_blog = Blog(title=request.title, body=request.body, user_id=request.user_id)
+def create_blog(
+    request: schema.Blog,
+    db: Session = Depends(database.get_db),
+    current_user: User = Depends(oauth2.get_current_user)
+):
+    new_blog = Blog(
+        title=request.title,
+        body=request.body,
+        user_id=current_user.id   # ✅ user comes from JWT
+    )
     db.add(new_blog)
     db.commit()
     db.refresh(new_blog)
     return new_blog
 
 
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def destroy_blog(id: int, db: Session = Depends(database.get_db)):
-    blog = db.query(Blog).filter(Blog.id == id).first()
+# ---------------- GET ALL BLOGS (JWT PROTECTED) ----------------
+@router.get("/blogs", response_model=List[schema.ShowBlog])
+def read_blogs(
+    db: Session = Depends(database.get_db),
+    current_user: User = Depends(oauth2.get_current_user)
+):
+    blogs = db.query(Blog).options(joinedload(Blog.owner)).all()
+    return blogs
+
+
+# ---------------- GET SINGLE BLOG ----------------
+@router.get("/{id}", response_model=schema.ShowBlog)
+def read_blog(
+    id: int,
+    db: Session = Depends(database.get_db)
+):
+    blog = db.query(Blog).options(joinedload(Blog.owner))\
+        .filter(Blog.id == id).first()
+
     if not blog:
-        raise HTTPException(status_code=404, detail=f"Blog with id {id} not found")
-    
-    db.delete(blog)
-    db.commit()
+        raise HTTPException(status_code=404, detail="Blog not found")
+
+    return blog
 
 
+# ---------------- UPDATE BLOG (OWNER ONLY) ----------------
 @router.put("/{id}", status_code=status.HTTP_202_ACCEPTED)
-def update(id: int, request: schema.Blog, db: Session = Depends(database.get_db)):
+def update_blog(
+    id: int,
+    request: schema.Blog,
+    db: Session = Depends(database.get_db),
+    current_user: User = Depends(oauth2.get_current_user)
+):
     blog = db.query(Blog).filter(Blog.id == id).first()
+
     if not blog:
-        raise HTTPException(status_code=404, detail=f"Blog with id {id} not found")
-    
-    # Verify user exists if user_id is being changed
-    if request.user_id != blog.user_id:
-        user = db.query(User).filter(User.id == request.user_id).first()
-        if not user:
-            raise HTTPException(status_code=404, detail=f"User with id {request.user_id} not found")
-    
+        raise HTTPException(status_code=404, detail="Blog not found")
+
+    if blog.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
     blog.title = request.title
     blog.body = request.body
-    blog.user_id = request.user_id
     db.commit()
     db.refresh(blog)
     return blog
 
 
-@router.get("/{id}", status_code=status.HTTP_200_OK, response_model=schema.ShowBlog)
-def read_blog(id: int, db: Session = Depends(database.get_db)):
-    # Load owner relationship to avoid lazy loading issues
-    blog = db.query(Blog).options(joinedload(Blog.owner)).filter(Blog.id == id).first()
+# ---------------- DELETE BLOG (OWNER ONLY) ----------------
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_blog(
+    id: int,
+    db: Session = Depends(database.get_db),
+    current_user: User = Depends(oauth2.get_current_user)
+):
+    blog = db.query(Blog).filter(Blog.id == id).first()
+
     if not blog:
-        raise HTTPException(status_code=404, detail=f"Blog with id {id} not found")
-    return blog
+        raise HTTPException(status_code=404, detail="Blog not found")
 
+    if blog.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
 
-@router.get("/blogs", response_model=List[schema.ShowBlog])
-def read_blogs(db: Session = Depends(database.get_db)):
-    # Load owner relationship to avoid lazy loading issues
-    blogs = db.query(Blog).options(joinedload(Blog.owner)).all()
-    return blogs
+    db.delete(blog)
+    db.commit()
