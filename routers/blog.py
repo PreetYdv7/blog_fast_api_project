@@ -4,7 +4,7 @@ import database
 from models import Blog, User
 from typing import List
 from sqlalchemy.orm import Session, joinedload
-from routers import oauth2
+from routers import dependencies
 
 router = APIRouter(
     prefix="/blog",
@@ -16,7 +16,7 @@ router = APIRouter(
 def create_blog(
     request: schema.Blog,
     db: Session = Depends(database.get_db),
-    current_user: User = Depends(oauth2.get_current_user)
+    current_user: User = Depends(dependencies.get_current_user)
 ):
     new_blog = Blog(
         title=request.title,
@@ -33,7 +33,7 @@ def create_blog(
 @router.get("/blogs", response_model=List[schema.ShowBlog])
 def read_blogs(
     db: Session = Depends(database.get_db),
-    current_user: User = Depends(oauth2.get_current_user)
+    current_user: User = Depends(dependencies.get_current_user)
 ):
     blogs = db.query(Blog).options(joinedload(Blog.owner)).all()
     return blogs
@@ -60,7 +60,7 @@ def update_blog(
     id: int,
     request: schema.Blog,
     db: Session = Depends(database.get_db),
-    current_user: User = Depends(oauth2.get_current_user)
+    current_user: User = Depends(dependencies.get_current_user)
 ):
     blog = db.query(Blog).filter(Blog.id == id).first()
 
@@ -82,7 +82,7 @@ def update_blog(
 def delete_blog(
     id: int,
     db: Session = Depends(database.get_db),
-    current_user: User = Depends(oauth2.get_current_user)
+    current_user: User = Depends(dependencies.get_current_user)
 ):
     blog = db.query(Blog).filter(Blog.id == id).first()
 
