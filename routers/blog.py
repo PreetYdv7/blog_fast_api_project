@@ -58,7 +58,7 @@ def read_blog(
 @router.put("/{id}", status_code=status.HTTP_202_ACCEPTED)
 def update_blog(
     id: int,
-    request: schema.Blog,
+    request: schema.BlogBase,
     db: Session = Depends(database.get_db),
     current_user: User = Depends(dependencies.get_current_user)
 ):

@@ -19,7 +19,7 @@ class User(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String)
-    email = Column(String)
+    email = Column(String, unique=True)
     password = Column(String)
     
     blogs = relationship("Blog", back_populates="owner")

@@ -14,6 +14,9 @@ router = APIRouter(
 
 @router.post("", response_model=schema.ShowUser)
 def create_user(request: schema.User, db: Session = Depends(database.get_db)):
+    existing_user = db.query(User).filter(User.email == request.email).first()
+    if existing_user:
+        raise HTTPException(status_code=409, detail="Email already exists")
     # Hash password before storing
     hashed_password = Hash.bcrypt(request.password)
     new_user = User(username=request.username, email=request.email, password=hashed_password)
@@ -30,3 +33,4 @@ def read_user(id: int, db: Session = Depends(database.get_db)):
     if not user:
         raise HTTPException(status_code=404, detail=f"User with id {id} not found")
     return user
+

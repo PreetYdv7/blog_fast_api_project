@@ -5,3 +5,5 @@ pydantic
 passlib
 python-jose
 python-multipart
+pytest
+requests
